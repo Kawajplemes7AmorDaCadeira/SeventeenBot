@@ -1,0 +1,5 @@
+{
+  "name": "Cassino Discord Bot",
+  "description": "Um bot de Discord que funciona como um cassino virtual com Blackjack, Roleta, Caça-níqueis e geração de imagens com IA.",
+  "requestFramePermissions": []
+}
