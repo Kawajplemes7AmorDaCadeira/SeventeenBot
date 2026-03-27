@@ -1,5 +1,5 @@
 import { Client, GatewayIntentBits, Collection, REST, Routes } from 'discord.js';
-import { config } from './config.js';
+import { config } from './src/bot/config.js';
 import fs from 'fs';
 import path from 'path';
 
@@ -91,3 +91,5 @@ export async function startBot() {
 
   await client.login(config.DISCORD_TOKEN);
 }
+
+startBot().catch(console.error);
