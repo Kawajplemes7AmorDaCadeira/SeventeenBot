@@ -19,7 +19,7 @@ export default {
     const userData = getUser(userId);
 
     if (userData.balance < bet) {
-      return interaction.reply({ content: `Você não tem fichas suficientes! Saldo atual: 🪙 ${userData.balance}`, ephemeral: true });
+      return interaction.reply({ content: `Você não tem Odiondos suficientes! Saldo atual: 🪙 ${userData.balance}`, ephemeral: true });
     }
 
     await startGame(interaction, bet);

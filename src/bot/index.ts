@@ -71,18 +71,23 @@ export async function startBot() {
         { body: commandData },
       );
 
-      if (config.GUILD_ID) {
-        // Also register guild commands for instant updates during testing
-        await rest.put(
-          Routes.applicationGuildCommands(config.CLIENT_ID, config.GUILD_ID),
-          { body: commandData },
-        );
-      }
       console.log(`Successfully reloaded application (/) commands.`);
     }
   } catch (error) {
     console.error('Error registering commands:', error);
   }
+
+  client.on('error', (error) => {
+    console.error('Discord Client Error:', error);
+  });
+
+  process.on('unhandledRejection', (reason, promise) => {
+    console.error('Unhandled Rejection at:', promise, 'reason:', reason);
+  });
+
+  process.on('uncaughtException', (error) => {
+    console.error('Uncaught Exception:', error);
+  });
 
   await client.login(config.DISCORD_TOKEN);
 }

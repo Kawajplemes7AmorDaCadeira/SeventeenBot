@@ -1,9 +1,10 @@
-import { ChatInputCommandInteraction, EmbedBuilder, AttachmentBuilder, StringSelectMenuInteraction, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, ButtonInteraction, EmbedBuilder, AttachmentBuilder, StringSelectMenuInteraction, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { generateRouletteGif } from './canvas.js';
-import { updateBalance, recordBet } from '../../database/db.js';
+import { updateBalance, recordBet, getUser } from '../../database/db.js';
+import { logBigWin } from '../../utils/logger.js';
 
 const ROULETTE_NUMBERS = [
-  0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26
+  0, 32, 15, 19, 4, 21, 2, 25, 17, 34, 6, 27, 13, 36, 11, 30, 8, 23, 10, 5, 24, 16, 33, 1, 20, 14, 31, 9, 22, 18, 29, 7, 28, 12, 35, 3, 26, 37
 ];
 
 const RED_NUMBERS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
@@ -11,13 +12,30 @@ const BLACK_NUMBERS = new Set([2, 4, 6, 8, 10, 11, 13, 15, 17, 20, 22, 24, 26, 2
 
 export async function playRoulette(interaction: any, bet: number, type: string, number: number | null) {
   const userId = interaction.user.id;
+  
+  const user = getUser(userId);
+  if (!user || user.balance < bet) {
+    if (interaction.deferred || interaction.replied) {
+      return interaction.followUp({ content: `Você não tem Odiondos suficientes! Saldo atual: 🪙 ${user?.balance || 0}`, ephemeral: true });
+    }
+    return interaction.reply({ content: `Você não tem Odiondos suficientes! Saldo atual: 🪙 ${user?.balance || 0}`, ephemeral: true });
+  }
+
   updateBalance(userId, -bet);
 
-  if (interaction.deferred || interaction.replied) {
-    await interaction.editReply({ content: 'Girando a roleta... 🔄', embeds: [], components: [] });
+  if (interaction.isButton()) {
+    await interaction.deferUpdate();
+    await interaction.editReply({ content: '🎡 **Apostando os Odiondos...**', embeds: [], components: [], files: [] });
+  } else if (interaction.deferred || interaction.replied) {
+    await interaction.editReply({ content: '🎡 **Apostando os Odiondos...**', embeds: [], components: [] });
   } else {
     await interaction.deferReply();
+    await interaction.editReply({ content: '🎡 **Apostando os Odiondos...**' });
   }
+  
+  await new Promise(resolve => setTimeout(resolve, 300));
+  await interaction.editReply({ content: '🎡 **O croupier lançou a bola...** ⚪' });
+  await new Promise(resolve => setTimeout(resolve, 300));
 
   const resultIndex = Math.floor(Math.random() * ROULETTE_NUMBERS.length);
   const resultNumber = ROULETTE_NUMBERS[resultIndex];
@@ -94,6 +112,10 @@ export async function playRoulette(interaction: any, bet: number, type: string, 
     updateBalance(userId, winAmount);
     result = recordBet(userId, bet, winAmount, 'roulette');
     description += `🎉 **Parabéns!** Você ganhou **🪙 ${winAmount.toLocaleString()}** (${multiplier}x)!`;
+    
+    if (result.isBigWin) {
+      logBigWin(interaction.client, interaction.user, winAmount, 'Roleta');
+    }
   } else {
     result = recordBet(userId, bet, 0, 'roulette');
     description += `❌ **Você perdeu!** Boa sorte na próxima vez.`;
@@ -118,10 +140,11 @@ export async function playRoulette(interaction: any, bet: number, type: string, 
     .setDescription(`**Aposta:** 🪙 ${bet.toLocaleString()}\n\nGirando a roleta... 🔄`)
     .setImage('attachment://roulette.gif');
 
-  await interaction.editReply({ embeds: [spinningEmbed], files: [attachment], components: [] });
+  await interaction.editReply({ content: null, embeds: [spinningEmbed], files: [attachment], components: [] });
 
   // Wait for the GIF to finish (30 frames + 10 extra = 40 frames * 50ms = 2000ms)
-  await new Promise(resolve => setTimeout(resolve, 2000));
+  // Aumentado para 3000ms para dar tempo do Discord carregar e tocar o GIF inteiro
+  await new Promise(resolve => setTimeout(resolve, 3000));
 
   const finalEmbed = new EmbedBuilder()
     .setColor(isWin ? '#00ff00' : '#ff0000')
@@ -129,7 +152,19 @@ export async function playRoulette(interaction: any, bet: number, type: string, 
     .setDescription(description)
     .setImage('attachment://roulette.gif');
 
-  await interaction.editReply({ embeds: [finalEmbed] });
+  const row = new ActionRowBuilder<ButtonBuilder>();
+  row.addComponents(
+    new ButtonBuilder()
+      .setCustomId(`roulette_playagain_${userId}_${bet}_${type}_${number || 'null'}`)
+      .setLabel('🔄 Jogar Novamente')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`roulette_double_${userId}_${bet}_${type}_${number || 'null'}`)
+      .setLabel('💰 Dobrar Aposta')
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  await interaction.editReply({ embeds: [finalEmbed], components: [row] });
 }
 
 export async function handleRouletteTypeSelect(interaction: StringSelectMenuInteraction) {
@@ -138,8 +173,13 @@ export async function handleRouletteTypeSelect(interaction: StringSelectMenuInte
   const type = interaction.values[0];
 
   if (interaction.user.id !== userId) {
+    if (interaction.deferred || interaction.replied) {
+      return interaction.followUp({ content: 'Esta não é a sua roleta!', ephemeral: true });
+    }
     return interaction.reply({ content: 'Esta não é a sua roleta!', ephemeral: true });
   }
+
+  if (!interaction.deferred && !interaction.replied) await interaction.deferUpdate();
 
   if (type === 'number_select') {
     const select = new StringSelectMenuBuilder()
@@ -156,7 +196,7 @@ export async function handleRouletteTypeSelect(interaction: StringSelectMenuInte
     );
 
     const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
-    await interaction.update({ content: 'Selecione a faixa de números:', embeds: [], components: [row] });
+    await interaction.editReply({ content: 'Selecione a faixa de números:', embeds: [], components: [row] });
   } else {
     await playRoulette(interaction, bet, type, null);
   }
@@ -168,8 +208,13 @@ export async function handleRouletteNumberSelect(interaction: StringSelectMenuIn
   const value = interaction.values[0];
 
   if (interaction.user.id !== userId) {
+    if (interaction.deferred || interaction.replied) {
+      return interaction.followUp({ content: 'Esta não é a sua roleta!', ephemeral: true });
+    }
     return interaction.reply({ content: 'Esta não é a sua roleta!', ephemeral: true });
   }
+
+  if (!interaction.deferred && !interaction.replied) await interaction.deferUpdate();
 
   if (value === 'range1' || value === 'range2' || value === 'range3') {
     const start = value === 'range1' ? 1 : value === 'range2' ? 13 : 25;
@@ -184,9 +229,27 @@ export async function handleRouletteNumberSelect(interaction: StringSelectMenuIn
     }
 
     const row = new ActionRowBuilder<StringSelectMenuBuilder>().addComponents(select);
-    await interaction.update({ content: `Escolha o número exato (${start}-${end}):`, embeds: [], components: [row] });
+    await interaction.editReply({ content: `Escolha o número exato (${start}-${end}):`, embeds: [], components: [row] });
   } else {
     const number = parseInt(value);
     await playRoulette(interaction, bet, 'number', number);
+  }
+}
+
+export async function handleRouletteButton(interaction: ButtonInteraction, action: string, userId: string) {
+  if (action === 'playagain' || action === 'double') {
+    const parts = interaction.customId.split('_');
+    // roulette_playagain_userId_bet_type_number
+    const betStr = parts[3];
+    const type = parts[4];
+    const numberStr = parts[5];
+    
+    let bet = parseInt(betStr, 10);
+    if (action === 'double') bet *= 2;
+    
+    const number = numberStr === 'null' ? null : parseInt(numberStr, 10);
+    
+    await playRoulette(interaction, bet, type, number);
+    return;
   }
 }

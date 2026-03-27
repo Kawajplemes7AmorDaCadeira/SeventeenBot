@@ -4,7 +4,7 @@ import db, { getUser, updateBalance, updateCooldown, checkAchievements } from '.
 export default {
   data: new SlashCommandBuilder()
     .setName('daily')
-    .setDescription('🎁 [Economia] Resgate suas fichas diárias!')
+    .setDescription('🎁 [Economia] Resgate seus Odiondos diários!')
     .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel])
     .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall]),
   async execute(interaction: ChatInputCommandInteraction) {
@@ -44,7 +44,7 @@ export default {
     
     const unlockedAchievements = checkAchievements(userId, 0);
     
-    let description = `Parabéns! Você resgatou suas **🪙 ${totalReward.toLocaleString()}** fichas diárias.\n\n🔥 Sequência atual: **${streak} dias**\n💰 Bônus de sequência: **🪙 ${streakBonus}**`;
+    let description = `Parabéns! Você resgatou seus **🪙 ${totalReward.toLocaleString()}** Odiondos diários.\n\n🔥 Sequência atual: **${streak} dias**\n💰 Bônus de sequência: **🪙 ${streakBonus}**`;
     
     if (unlockedAchievements.length > 0) {
       unlockedAchievements.forEach((ach: any) => {

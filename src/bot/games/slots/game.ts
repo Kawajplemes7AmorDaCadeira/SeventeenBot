@@ -1,21 +1,44 @@
-import { ChatInputCommandInteraction, EmbedBuilder, AttachmentBuilder } from 'discord.js';
+import { ChatInputCommandInteraction, ButtonInteraction, EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { generateSlotsGif } from './canvas.js';
-import { updateBalance, recordBet } from '../../database/db.js';
+import { updateBalance, recordBet, getUser } from '../../database/db.js';
+import { logBigWin } from '../../utils/logger.js';
 
-const SYMBOLS = ['🍒', '🍋', '🔔', '💎', '7️⃣'];
+const SYMBOLS = ['🍒', '🍋', '🔔', '💎', '7️⃣', '💀'];
 const MULTIPLIERS: Record<string, number> = {
   '🍒': 2,
   '🍋': 3,
   '🔔': 5,
   '💎': 10,
   '7️⃣': 50,
+  '💀': 0,
 };
 
-export async function playSlots(interaction: ChatInputCommandInteraction, bet: number) {
+export async function playSlots(interaction: ChatInputCommandInteraction | ButtonInteraction, bet: number) {
   const userId = interaction.user.id;
+  
+  const user = getUser(userId);
+  if (!user || user.balance < bet) {
+    if (interaction.deferred || interaction.replied) {
+      return interaction.followUp({ content: `Você não tem Odiondos suficientes! Saldo atual: 🪙 ${user?.balance || 0}`, ephemeral: true });
+    }
+    return interaction.reply({ content: `Você não tem Odiondos suficientes! Saldo atual: 🪙 ${user?.balance || 0}`, ephemeral: true });
+  }
+
   updateBalance(userId, -bet);
 
-  await interaction.deferReply();
+  if (interaction.deferred || interaction.replied) {
+    await interaction.editReply({ content: '🎰 **Inserindo ficha...**', embeds: [], components: [], files: [] });
+  } else if (interaction.isButton()) {
+    await interaction.deferUpdate();
+    await interaction.editReply({ content: '🎰 **Inserindo ficha...**', embeds: [], components: [], files: [] });
+  } else {
+    await interaction.deferReply();
+    await interaction.editReply({ content: '🎰 **Inserindo ficha...**' });
+  }
+  
+  await new Promise(resolve => setTimeout(resolve, 300));
+  await interaction.editReply({ content: '🎰 **Puxando a alavanca...** 🕹️' });
+  await new Promise(resolve => setTimeout(resolve, 300));
 
   const grid: string[][] = [];
   for (let i = 0; i < 3; i++) {
@@ -57,7 +80,7 @@ export async function playSlots(interaction: ChatInputCommandInteraction, bet: n
     }
   });
 
-  const isWin = winningLines.length > 0;
+  const isWin = totalMultiplier > 0;
   let winAmount = 0;
   let description = `**Aposta:** 🪙 ${bet}\n\n`;
   let result: any = {};
@@ -66,6 +89,9 @@ export async function playSlots(interaction: ChatInputCommandInteraction, bet: n
     winAmount = bet * totalMultiplier;
     updateBalance(userId, winAmount);
     result = recordBet(userId, bet, winAmount, 'slots');
+    if (result.isBigWin) {
+      logBigWin(interaction.client, userId, winAmount, 'Slots');
+    }
     description += winDetails;
     description += `\n🎉 **JACKPOT!** Você ganhou **🪙 ${winAmount.toLocaleString()}** (Total: ${totalMultiplier}x)!`;
   } else {
@@ -92,10 +118,11 @@ export async function playSlots(interaction: ChatInputCommandInteraction, bet: n
     .setDescription(`**Aposta:** 🪙 ${bet}\n\nGirando os rolos... 🔄`)
     .setImage('attachment://slots.gif');
 
-  const message = await interaction.editReply({ embeds: [spinningEmbed], files: [attachment] });
+  const message = await interaction.editReply({ content: null, embeds: [spinningEmbed], files: [attachment] });
 
   // Wait for the GIF to finish (40 frames + 15 extra = 55 frames * 50ms = 2750ms)
-  await new Promise(resolve => setTimeout(resolve, 2750));
+  // Aumentado para 3500ms para dar tempo do Discord carregar e tocar o GIF inteiro
+  await new Promise(resolve => setTimeout(resolve, 3500));
 
   const finalEmbed = new EmbedBuilder()
     .setColor(isWin ? '#00ff00' : '#ff0000')
@@ -103,5 +130,28 @@ export async function playSlots(interaction: ChatInputCommandInteraction, bet: n
     .setDescription(description)
     .setImage('attachment://slots.gif');
 
-  await interaction.editReply({ embeds: [finalEmbed] });
+  const row = new ActionRowBuilder<ButtonBuilder>();
+  row.addComponents(
+    new ButtonBuilder()
+      .setCustomId(`slots_playagain_${userId}_${bet}`)
+      .setLabel('🔄 Jogar Novamente')
+      .setStyle(ButtonStyle.Success),
+    new ButtonBuilder()
+      .setCustomId(`slots_double_${userId}_${bet}`)
+      .setLabel('💰 Dobrar Aposta')
+      .setStyle(ButtonStyle.Primary)
+  );
+
+  await interaction.editReply({ embeds: [finalEmbed], components: [row] });
+}
+
+export async function handleSlotsButton(interaction: ButtonInteraction, action: string, userId: string) {
+  if (action === 'playagain' || action === 'double') {
+    const betStr = interaction.customId.split('_')[3];
+    let bet = parseInt(betStr, 10);
+    if (action === 'double') bet *= 2;
+    
+    await playSlots(interaction, bet);
+    return;
+  }
 }

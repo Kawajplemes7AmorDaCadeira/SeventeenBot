@@ -4,12 +4,12 @@ import { getUser, updateBalance } from '../../database/db.js';
 export default {
   data: new SlashCommandBuilder()
     .setName('pay')
-    .setDescription('💸 [Economia] Transfira fichas para outro usuário!')
+    .setDescription('💸 [Economia] Transfira Odiondos para outro usuário!')
     .setContexts([InteractionContextType.Guild, InteractionContextType.BotDM, InteractionContextType.PrivateChannel])
     .setIntegrationTypes([ApplicationIntegrationType.GuildInstall, ApplicationIntegrationType.UserInstall])
     .addUserOption(option =>
       option.setName('target')
-        .setDescription('O usuário que receberá as fichas')
+        .setDescription('O usuário que receberá os Odiondos')
         .setRequired(true))
     .addIntegerOption(option =>
       option.setName('amount')
@@ -23,15 +23,15 @@ export default {
     const userData = getUser(userId);
 
     if (target.id === userId) {
-      return interaction.reply({ content: '❌ Você não pode transferir fichas para você mesmo!', ephemeral: true });
+      return interaction.reply({ content: '❌ Você não pode transferir Odiondos para você mesmo!', ephemeral: true });
     }
 
     if (target.bot) {
-      return interaction.reply({ content: '❌ Você não pode transferir fichas para bots!', ephemeral: true });
+      return interaction.reply({ content: '❌ Você não pode transferir Odiondos para bots!', ephemeral: true });
     }
 
     if (userData.balance < amount) {
-      return interaction.reply({ content: '❌ Você não tem fichas suficientes para essa transferência!', ephemeral: true });
+      return interaction.reply({ content: '❌ Você não tem Odiondos suficientes para essa transferência!', ephemeral: true });
     }
 
     // Transfer
@@ -41,7 +41,7 @@ export default {
     const embed = new EmbedBuilder()
       .setColor('#2ecc71')
       .setTitle('💸 Transferência Realizada')
-      .setDescription(`Você transferiu **🪙 ${amount.toLocaleString()}** fichas para <@${target.id}>!`)
+      .setDescription(`Você transferiu **🪙 ${amount.toLocaleString()}** Odiondos para <@${target.id}>!`)
       .setTimestamp();
 
     await interaction.reply({ embeds: [embed] });

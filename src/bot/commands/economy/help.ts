@@ -14,17 +14,17 @@ export default {
       .addFields(
         {
           name: '💰 Economia',
-          value: '`/balance` - Exibe o seu saldo atual.\n`/daily` - Resgate suas fichas diárias.\n`/work` - Trabalhe para ganhar fichas.\n`/pay` - Transfira fichas para outro usuário.\n`/shop` - Compre itens e boosters.\n`/inventory` - Veja seus itens comprados.',
+          value: '`/profile` - Veja seu saldo, nível e estatísticas.\n`/daily` - Resgate seus Odiondos diários.\n`/pay` - Transfira Odiondos para outro usuário.',
           inline: false
         },
         {
           name: '🎮 Jogos',
-          value: '`/blackjack` - Jogue uma partida de Blackjack (21).\n`/slots` - Jogue no caça-níqueis.\n`/roleta` - Jogue na roleta europeia.\n`/coinflip` - Cara ou coroa.',
+          value: '`/casino` - Entre no lobby do cassino e escolha seu jogo!\n`/blackjack` - Jogue uma partida de Blackjack (21).\n`/slots` - Jogue no caça-níqueis.\n`/roleta` - Jogue na roleta europeia.\n`/coinflip` - Cara ou coroa.\n`/crash` - Multiplicador dinâmico.\n`/mines` - Encontre os diamantes.\n`/duelo` - Desafie alguém para dados.',
           inline: false
         },
         {
           name: 'ℹ️ Utilidades',
-          value: '`/help` - Mostra a lista de todos os comandos disponíveis.\n`/leaderboard` - Veja o ranking dos melhores jogadores.\n`/profile` - Veja o seu perfil completo e estatísticas.',
+          value: '`/help` - Mostra a lista de todos os comandos disponíveis.\n`/leaderboard` - Veja o ranking dos melhores jogadores.',
           inline: false
         }
       )
