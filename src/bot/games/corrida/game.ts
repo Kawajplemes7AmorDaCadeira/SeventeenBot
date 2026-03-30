@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, ButtonInteraction, EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, StringSelectMenuInteraction } from 'discord.js';
 import { generateCorridaGif } from './canvas.js';
-import { updateBalance, recordBet, getUser } from '../../database/db.js';
+import { updateBalance, recordBet, getUser, addActiveBet, removeActiveBet } from '../../database/db.js';
 import { logBigWin } from '../../utils/logger.js';
 
 export async function playCorrida(interaction: ChatInputCommandInteraction | ButtonInteraction | StringSelectMenuInteraction, bet: number, chosenHorse: number) {
@@ -14,11 +14,13 @@ export async function playCorrida(interaction: ChatInputCommandInteraction | But
     return interaction.reply({ content: `Você não tem Odiondos suficientes! Saldo atual: 🪙 ${user?.balance || 0}`, ephemeral: true });
   }
 
+  const betId = `${userId}_${Date.now()}`;
+  addActiveBet(betId, userId, bet, 'corrida');
   updateBalance(userId, -bet);
 
   if (interaction.deferred || interaction.replied) {
     await interaction.editReply({ content: '🐎 **Preparando os cavalos...**', embeds: [], components: [], files: [] });
-  } else if (interaction.isButton() || interaction.isStringSelectMenu()) {
+  } else if ((interaction.isButton() || interaction.isStringSelectMenu()) && !interaction.deferred && !interaction.replied) {
     await interaction.deferUpdate();
     await interaction.editReply({ content: '🐎 **Preparando os cavalos...**', embeds: [], components: [], files: [] });
   } else {
@@ -136,6 +138,7 @@ export async function playCorrida(interaction: ChatInputCommandInteraction | But
       .setStyle(ButtonStyle.Primary)
   );
 
+  removeActiveBet(betId);
   await interaction.editReply({ embeds: [finalEmbed], components: [row] }).catch(console.error);
 }
 

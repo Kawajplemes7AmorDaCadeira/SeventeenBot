@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, InteractionContextType, ApplicationIntegrationType, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, ComponentType } from 'discord.js';
-import { getUser, updateBalance, recordBet } from '../../database/db.js';
+import { getUser, updateBalance, recordBet, addActiveBet, removeActiveBet } from '../../database/db.js';
 import { createDiceCanvas } from '../../games/dice/canvas.js';
 import { logBigWin } from '../../utils/logger.js';
 
@@ -89,6 +89,11 @@ export default {
 
       collector.stop('accepted');
 
+      const challengerBetId = `${challenger.id}_${Date.now()}_duel`;
+      const targetBetId = `${target.id}_${Date.now()}_duel`;
+      addActiveBet(challengerBetId, challenger.id, bet, 'dice');
+      addActiveBet(targetBetId, target.id, bet, 'dice');
+
       // Deduct bets
       updateBalance(challenger.id, -bet);
       updateBalance(target.id, -bet);
@@ -143,6 +148,9 @@ export default {
         .setDescription(resultText)
         .setImage('attachment://duel.png')
         .setTimestamp();
+
+      removeActiveBet(challengerBetId);
+      removeActiveBet(targetBetId);
 
       await i.editReply({ content: null, embeds: [resultEmbed], components: [], files: [attachment] }).catch(console.error);
     });

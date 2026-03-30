@@ -3,6 +3,11 @@ import { config } from './bot/config.js';
 import fs from 'fs';
 import path from 'path';
 
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
 export const client = new Client({
   intents: [
     GatewayIntentBits.Guilds,
@@ -21,7 +26,7 @@ export async function startBot() {
   }
 
   // Load commands
-  const commandsPath = path.join(process.cwd(), 'src', 'bot', 'commands');
+  const commandsPath = path.join(__dirname, 'bot', 'commands');
   const commandData: any[] = [];
   
   const loadCommands = async (dir: string) => {
@@ -44,7 +49,7 @@ export async function startBot() {
   await loadCommands(commandsPath);
 
   // Load events
-  const eventsPath = path.join(process.cwd(), 'src', 'bot', 'events');
+  const eventsPath = path.join(__dirname, 'bot', 'events');
   if (fs.existsSync(eventsPath)) {
     const eventFiles = fs.readdirSync(eventsPath).filter(file => file.endsWith('.ts') || file.endsWith('.js'));
     for (const file of eventFiles) {
@@ -91,5 +96,3 @@ export async function startBot() {
 
   await client.login(config.DISCORD_TOKEN);
 }
-
-startBot().catch(console.error);

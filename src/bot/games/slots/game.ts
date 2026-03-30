@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, ButtonInteraction, EmbedBuilder, AttachmentBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { generateSlotsGif } from './canvas.js';
-import { updateBalance, recordBet, getUser } from '../../database/db.js';
+import { updateBalance, recordBet, getUser, addActiveBet, removeActiveBet } from '../../database/db.js';
 import { logBigWin } from '../../utils/logger.js';
 
 const SYMBOLS = ['🍒', '🍋', '🔔', '💎', '7️⃣', '💀'];
@@ -24,20 +24,22 @@ export async function playSlots(interaction: ChatInputCommandInteraction | Butto
     return interaction.reply({ content: `Você não tem Odiondos suficientes! Saldo atual: 🪙 ${user?.balance || 0}`, ephemeral: true });
   }
 
+  const betId = `${userId}_${Date.now()}`;
+  addActiveBet(betId, userId, bet, 'slots');
   updateBalance(userId, -bet);
 
   if (interaction.deferred || interaction.replied) {
-    await interaction.editReply({ content: '🎰 **Inserindo ficha...**', embeds: [], components: [], files: [] });
+    await interaction.editReply({ content: '🎰 **Inserindo ficha...**', embeds: [], components: [], files: [] }).catch(console.error);
   } else if (interaction.isButton()) {
-    await interaction.deferUpdate();
-    await interaction.editReply({ content: '🎰 **Inserindo ficha...**', embeds: [], components: [], files: [] });
+    await interaction.deferUpdate().catch(console.error);
+    await interaction.editReply({ content: '🎰 **Inserindo ficha...**', embeds: [], components: [], files: [] }).catch(console.error);
   } else {
-    await interaction.deferReply();
-    await interaction.editReply({ content: '🎰 **Inserindo ficha...**' });
+    await interaction.deferReply().catch(console.error);
+    await interaction.editReply({ content: '🎰 **Inserindo ficha...**' }).catch(console.error);
   }
   
   await new Promise(resolve => setTimeout(resolve, 300));
-  await interaction.editReply({ content: '🎰 **Puxando a alavanca...** 🕹️' });
+  await interaction.editReply({ content: '🎰 **Puxando a alavanca...** 🕹️' }).catch(console.error);
   await new Promise(resolve => setTimeout(resolve, 300));
 
   const grid: string[][] = [];
@@ -118,11 +120,11 @@ export async function playSlots(interaction: ChatInputCommandInteraction | Butto
     .setDescription(`**Aposta:** 🪙 ${bet}\n\nGirando os rolos... 🔄`)
     .setImage('attachment://slots.gif');
 
-  const message = await interaction.editReply({ content: null, embeds: [spinningEmbed], files: [attachment] });
+  await interaction.editReply({ content: null, embeds: [spinningEmbed], files: [attachment] }).catch(console.error);
 
-  // Wait for the GIF to finish (40 frames + 15 extra = 55 frames * 50ms = 2750ms)
-  // Aumentado para 3500ms para dar tempo do Discord carregar e tocar o GIF inteiro
-  await new Promise(resolve => setTimeout(resolve, 3500));
+  // Wait for the GIF to finish (30 frames + 10 extra = 40 frames * 50ms = 2000ms)
+  // Aumentado para 3000ms para dar tempo do Discord carregar e tocar o GIF inteiro
+  await new Promise(resolve => setTimeout(resolve, 3000));
 
   const finalEmbed = new EmbedBuilder()
     .setColor(isWin ? '#00ff00' : '#ff0000')
@@ -142,7 +144,8 @@ export async function playSlots(interaction: ChatInputCommandInteraction | Butto
       .setStyle(ButtonStyle.Primary)
   );
 
-  await interaction.editReply({ embeds: [finalEmbed], components: [row] });
+  removeActiveBet(betId);
+  await interaction.editReply({ embeds: [finalEmbed], components: [row] }).catch(console.error);
 }
 
 export async function handleSlotsButton(interaction: ButtonInteraction, action: string, userId: string) {

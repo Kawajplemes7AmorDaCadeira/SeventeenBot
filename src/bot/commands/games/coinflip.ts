@@ -1,5 +1,5 @@
 import { SlashCommandBuilder, ChatInputCommandInteraction, EmbedBuilder, InteractionContextType, ApplicationIntegrationType, ButtonInteraction } from 'discord.js';
-import { getUser, updateBalance, recordBet } from '../../database/db.js';
+import { getUser, updateBalance, recordBet, addActiveBet, removeActiveBet } from '../../database/db.js';
 import { logBigWin } from '../../utils/logger.js';
 
 export async function playCoinflip(interaction: ChatInputCommandInteraction | ButtonInteraction, bet: number, side: string) {
@@ -13,6 +13,9 @@ export async function playCoinflip(interaction: ChatInputCommandInteraction | Bu
     }
     return interaction.reply({ content: msg, ephemeral: true });
   }
+
+  const betId = `${userId}_${Date.now()}`;
+  addActiveBet(betId, userId, bet, 'coinflip');
 
   // Deduct bet
   updateBalance(userId, -bet);
@@ -81,6 +84,7 @@ export async function playCoinflip(interaction: ChatInputCommandInteraction | Bu
     });
   }
 
+  removeActiveBet(betId);
   await interaction.editReply({ embeds: [finalEmbed] });
 }
 

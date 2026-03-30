@@ -9,26 +9,48 @@ export default {
   async execute(interaction: ChatInputCommandInteraction) {
     const embed = new EmbedBuilder()
       .setColor('#5865F2')
-      .setTitle('📚 Lista de Comandos')
-      .setDescription('Aqui estão todos os comandos disponíveis, divididos por categorias:')
+      .setTitle('📚 Central de Ajuda - Cassino Odiondos')
+      .setDescription('Bem-vindo ao Cassino Odiondos! Aqui estão todos os comandos disponíveis para você se divertir e gerenciar sua fortuna:')
       .addFields(
         {
-          name: '💰 Economia',
-          value: '`/profile` - Veja seu saldo, nível e estatísticas.\n`/daily` - Resgate seus Odiondos diários.\n`/pay` - Transfira Odiondos para outro usuário.',
+          name: '💰 Economia & Perfil',
+          value: 
+            '`/profile` - Veja seu saldo, nível, conquistas e estatísticas.\n' +
+            '`/daily` - Resgate sua recompensa diária de Odiondos.\n' +
+            '`/mesada` - Receba uma pequena quantia se estiver sem saldo.\n' +
+            '`/pay` - Transfira Odiondos para outros jogadores.\n' +
+            '`/shop` - Visite a loja para comprar visuais de cartas e mesas.\n' +
+            '`/inventory` - Gerencie e equipe seus itens comprados.\n' +
+            '`/missions` - Veja e complete missões para ganhar bônus.\n' +
+            '`/leaderboard` - Veja o ranking global dos magnatas.',
           inline: false
         },
         {
-          name: '🎮 Jogos',
-          value: '`/casino` - Entre no lobby do cassino e escolha seu jogo!\n`/blackjack` - Jogue uma partida de Blackjack (21).\n`/slots` - Jogue no caça-níqueis.\n`/roleta` - Jogue na roleta europeia.\n`/coinflip` - Cara ou coroa.\n`/crash` - Multiplicador dinâmico.\n`/mines` - Encontre os diamantes.\n`/duelo` - Desafie alguém para dados.',
+          name: '🎮 Jogos de Cassino',
+          value: 
+            '`/casino` - **Lobby Principal**: Acesse todos os jogos em um só lugar!\n' +
+            '`/blackjack` - O clássico 21 contra o dealer.\n' +
+            '`/poker` - Jogue Poker Texas Hold\'em contra a casa.\n' +
+            '`/slots` - Tente a sorte no caça-níqueis temático.\n' +
+            '`/roulette` - Aposte na roleta europeia.\n' +
+            '`/mines` - Campo minado: multiplique sua aposta com cuidado.\n' +
+            '`/crash` - O foguete sobe: pare antes que ele exploda!\n' +
+            '`/coinflip` - Aposte no cara ou coroa.\n' +
+            '`/corrida` - Aposte em corridas de cavalos emocionantes.\n' +
+            '`/duelo` - Desafie um amigo para um duelo de dados.',
           inline: false
         },
         {
-          name: 'ℹ️ Utilidades',
-          value: '`/help` - Mostra a lista de todos os comandos disponíveis.\n`/leaderboard` - Veja o ranking dos melhores jogadores.',
+          name: 'ℹ️ Informações',
+          value: 
+            '`/help` - Mostra esta lista de comandos.\n' +
+            '**Eventos:** Fique atento ao chat para multiplicadores globais!',
           inline: false
         }
       )
-      .setFooter({ text: 'Divirta-se e jogue com responsabilidade!' });
+      .setThumbnail(interaction.client.user.displayAvatarURL())
+      .setFooter({ text: 'Jogue com responsabilidade • Cassino Odiondos © 2026' })
+      .setTimestamp();
 
     await interaction.reply({ embeds: [embed] });
   },

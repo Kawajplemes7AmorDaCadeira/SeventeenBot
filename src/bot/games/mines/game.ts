@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, ComponentType, ButtonInteraction } from 'discord.js';
-import { getUser, updateBalance, recordBet } from '../../database/db.js';
+import { getUser, updateBalance, recordBet, addActiveBet, removeActiveBet } from '../../database/db.js';
 import { createMinesCanvas } from './canvas.js';
 import { logBigWin } from '../../utils/logger.js';
 
@@ -13,6 +13,9 @@ export async function playMines(interaction: ChatInputCommandInteraction | Butto
     }
     return interaction.reply({ content: 'Você não tem Odiondos suficientes!', ephemeral: true });
   }
+
+  const betId = `${userId}_${Date.now()}`;
+  addActiveBet(betId, userId, bet, 'mines');
 
   if (interaction.deferred || interaction.replied) {
     // already deferred
@@ -112,6 +115,7 @@ export async function playMines(interaction: ChatInputCommandInteraction | Butto
     if (i.customId === 'mines_cashout') {
       isCashedOut = true;
       collector.stop('cashed_out');
+      removeActiveBet(betId);
       
       const multiplier = calculateMultiplier(diamondsFound);
       const winAmount = Math.floor(bet * multiplier);
@@ -142,6 +146,7 @@ export async function playMines(interaction: ChatInputCommandInteraction | Butto
     if (grid[index] === 'bomb') {
       isGameOver = true;
       collector.stop('game_over');
+      removeActiveBet(betId);
       
       recordBet(userId, bet, 0, 'mines');
 

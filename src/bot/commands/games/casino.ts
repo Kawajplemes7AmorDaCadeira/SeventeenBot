@@ -12,7 +12,7 @@ export default {
       .setTitle('🎰 Bem-vindo ao Cassino Odiondos')
       .setDescription('Sinta a adrenalina! Escolha uma categoria e comece a apostar.')
       .addFields(
-        { name: '🃏 Clássicos', value: 'Blackjack, Roleta, Slots', inline: true },
+        { name: '🃏 Clássicos', value: 'Blackjack, Roleta, Slots, Poker', inline: true },
         { name: '⚡ Rápidos', value: 'Crash, Mines, Coinflip', inline: true },
         { name: '🏆 Competitivos', value: 'Duelo, Corrida', inline: true }
       )
@@ -22,7 +22,8 @@ export default {
     const row1 = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId('lobby_blackjack').setLabel('Blackjack').setStyle(ButtonStyle.Primary).setEmoji('🃏'),
       new ButtonBuilder().setCustomId('lobby_slots').setLabel('Slots').setStyle(ButtonStyle.Primary).setEmoji('🎰'),
-      new ButtonBuilder().setCustomId('lobby_roulette').setLabel('Roleta').setStyle(ButtonStyle.Primary).setEmoji('🎡')
+      new ButtonBuilder().setCustomId('lobby_roulette').setLabel('Roleta').setStyle(ButtonStyle.Primary).setEmoji('🎡'),
+      new ButtonBuilder().setCustomId('lobby_poker').setLabel('Poker').setStyle(ButtonStyle.Primary).setEmoji('♠️')
     );
 
     const row2 = new ActionRowBuilder<ButtonBuilder>().addComponents(
@@ -38,15 +39,35 @@ export default {
 
     const row4 = new ActionRowBuilder<ButtonBuilder>().addComponents(
       new ButtonBuilder().setCustomId('lobby_balance').setLabel('Meu Saldo').setStyle(ButtonStyle.Secondary).setEmoji('💰'),
-      new ButtonBuilder().setCustomId('lobby_daily').setLabel('Recompensa Diária').setStyle(ButtonStyle.Success).setEmoji('📅')
+      new ButtonBuilder().setCustomId('lobby_daily').setLabel('Diário').setStyle(ButtonStyle.Success).setEmoji('📅'),
+      new ButtonBuilder().setCustomId('lobby_mesada').setLabel('Mesada').setStyle(ButtonStyle.Success).setEmoji('💵'),
+      new ButtonBuilder().setCustomId('lobby_shop').setLabel('Loja').setStyle(ButtonStyle.Primary).setEmoji('🛒'),
+      new ButtonBuilder().setCustomId('lobby_missions').setLabel('Missões').setStyle(ButtonStyle.Secondary).setEmoji('📜')
     );
 
-    await interaction.reply({ embeds: [embed], components: [row1, row2, row3, row4] });
+    const row5 = new ActionRowBuilder<ButtonBuilder>().addComponents(
+      new ButtonBuilder().setCustomId('lobby_inventory').setLabel('Inventário').setStyle(ButtonStyle.Secondary).setEmoji('🎒')
+    );
+
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply({ embeds: [embed], components: [row1, row2, row3, row4, row5] });
+    } else {
+      await interaction.reply({ embeds: [embed], components: [row1, row2, row3, row4, row5] });
+    }
   },
 };
 
 export async function handleLobbyButton(interaction: any) {
-  const game = interaction.customId.replace('lobby_', '');
+  const parts = interaction.customId.split('_');
+  const game = parts[1];
+  const userId = parts[2];
+  
+  if (userId && interaction.user.id !== userId) {
+    if (interaction.deferred || interaction.replied) {
+      return interaction.followUp({ content: 'Esta navegação não é sua!', ephemeral: true }).catch(console.error);
+    }
+    return interaction.reply({ content: 'Esta navegação não é sua!', ephemeral: true }).catch(console.error);
+  }
   
   if (game === 'balance') {
     if (interaction.deferred || interaction.replied) {
@@ -61,6 +82,29 @@ export async function handleLobbyButton(interaction: any) {
     } else {
       await interaction.reply({ content: 'Use o comando `/daily` para pegar sua recompensa diária!', ephemeral: true });
     }
+    return;
+  } else if (game === 'mesada') {
+    if (interaction.deferred || interaction.replied) {
+      await interaction.editReply({ content: 'Use o comando `/mesada` para pegar sua mesada periódica!' });
+    } else {
+      await interaction.reply({ content: 'Use o comando `/mesada` para pegar sua mesada periódica!', ephemeral: true });
+    }
+    return;
+  } else if (game === 'shop') {
+    const { default: shop } = await import('../economy/shop.js');
+    await shop.execute(interaction as any);
+    return;
+  } else if (game === 'missions') {
+    const { default: missions } = await import('../economy/missions.js');
+    await missions.execute(interaction as any);
+    return;
+  } else if (game === 'inventory') {
+    const { default: inventory } = await import('../economy/inventory.js');
+    await inventory.execute(interaction as any);
+    return;
+  } else if (game === 'back') {
+    const { default: casino } = await import('./casino.js');
+    await casino.execute(interaction as any);
     return;
   }
 
@@ -102,6 +146,9 @@ export async function handleStartGameButton(interaction: any) {
   if (game === 'blackjack') {
     const { startGame } = await import('../../games/blackjack/game.js');
     await startGame(interaction, bet);
+  } else if (game === 'poker') {
+    const { startPokerGame } = await import('../../games/poker/game.js');
+    await startPokerGame(interaction, bet);
   } else if (game === 'roulette') {
     // Roulette needs a bit more setup usually, but let's just show the type selection
     const { playRoulette } = await import('../../games/roulette/game.js');

@@ -1,6 +1,6 @@
 import { ChatInputCommandInteraction, ButtonInteraction, EmbedBuilder, AttachmentBuilder, StringSelectMenuInteraction, ActionRowBuilder, StringSelectMenuBuilder, StringSelectMenuOptionBuilder, ButtonBuilder, ButtonStyle } from 'discord.js';
 import { generateRouletteGif } from './canvas.js';
-import { updateBalance, recordBet, getUser } from '../../database/db.js';
+import { updateBalance, recordBet, getUser, addActiveBet, removeActiveBet, getActiveTableSkin } from '../../database/db.js';
 import { logBigWin } from '../../utils/logger.js';
 
 const ROULETTE_NUMBERS = [
@@ -21,9 +21,11 @@ export async function playRoulette(interaction: any, bet: number, type: string, 
     return interaction.reply({ content: `Você não tem Odiondos suficientes! Saldo atual: 🪙 ${user?.balance || 0}`, ephemeral: true });
   }
 
+  const betId = `${userId}_${Date.now()}`;
+  addActiveBet(betId, userId, bet, 'roulette');
   updateBalance(userId, -bet);
 
-  if (interaction.isButton()) {
+  if (interaction.isButton() && !interaction.deferred && !interaction.replied) {
     await interaction.deferUpdate();
     await interaction.editReply({ content: '🎡 **Apostando os Odiondos...**', embeds: [], components: [], files: [] });
   } else if (interaction.deferred || interaction.replied) {
@@ -131,7 +133,11 @@ export async function playRoulette(interaction: any, bet: number, type: string, 
     });
   }
 
-  const imageBuffer = await generateRouletteGif(resultNumber);
+  const activeTable = getActiveTableSkin(userId);
+  const tableMetadata = JSON.parse(activeTable?.metadata || '{}');
+  const tableColor = tableMetadata.color || '#1a3a2a';
+
+  const imageBuffer = await generateRouletteGif(resultNumber, tableColor);
   const attachment = new AttachmentBuilder(imageBuffer, { name: 'roulette.gif' });
 
   const spinningEmbed = new EmbedBuilder()
@@ -164,6 +170,7 @@ export async function playRoulette(interaction: any, bet: number, type: string, 
       .setStyle(ButtonStyle.Primary)
   );
 
+  removeActiveBet(betId);
   await interaction.editReply({ embeds: [finalEmbed], components: [row] });
 }
 

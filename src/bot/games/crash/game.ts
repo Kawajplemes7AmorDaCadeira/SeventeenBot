@@ -1,5 +1,5 @@
 import { ChatInputCommandInteraction, EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle, AttachmentBuilder, ButtonInteraction } from 'discord.js';
-import { getUser, updateBalance, recordBet } from '../../database/db.js';
+import { getUser, updateBalance, recordBet, addActiveBet, removeActiveBet } from '../../database/db.js';
 import { createCrashCanvas } from './canvas.js';
 import { logBigWin } from '../../utils/logger.js';
 
@@ -13,6 +13,9 @@ export async function playCrash(interaction: ChatInputCommandInteraction | Butto
     }
     return interaction.reply({ content: 'Você não tem Odiondos suficientes!', ephemeral: true });
   }
+
+  const betId = `${userId}_${Date.now()}`;
+  addActiveBet(betId, userId, bet, 'crash');
 
   if (interaction.deferred || interaction.replied) {
     // already deferred
@@ -69,6 +72,7 @@ export async function playCrash(interaction: ChatInputCommandInteraction | Butto
     await i.deferUpdate();
     isCashedOut = true;
     collector.stop('cashed_out');
+    removeActiveBet(betId);
     
     const winAmount = Math.floor(bet * currentMultiplier);
     updateBalance(userId, winAmount);
@@ -107,6 +111,7 @@ export async function playCrash(interaction: ChatInputCommandInteraction | Butto
       isCrashed = true;
       clearInterval(interval);
       collector.stop('crashed');
+      removeActiveBet(betId);
 
       recordBet(userId, bet, 0, 'crash');
 

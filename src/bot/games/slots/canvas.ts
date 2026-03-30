@@ -219,10 +219,10 @@ export async function generateSlotsGif(finalGrid: string[][], winningLines: numb
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
   
-  const totalFrames = 40;
+  const totalFrames = 30; // Reduced from 40 to save CPU
   
   // Create a long strip of symbols for each column to simulate spinning
-  const stripLength = 20;
+  const stripLength = 15; // Reduced from 20 to save CPU
   const strips: string[][] = [[], [], []];
   
   for (let col = 0; col < 3; col++) {
@@ -237,6 +237,11 @@ export async function generateSlotsGif(finalGrid: string[][], winningLines: numb
   const easeOutCubic = (x: number): number => 1 - Math.pow(1 - x, 3);
   
   for (let frame = 0; frame < totalFrames; frame++) {
+    // Yield every 5 frames to prevent blocking the event loop
+    if (frame % 5 === 0) {
+      await new Promise(resolve => setImmediate(resolve));
+    }
+
     // Background (Machine Casing)
     const bgGradient = ctx.createLinearGradient(0, 0, 0, height);
     bgGradient.addColorStop(0, '#1a2a3a');
@@ -293,8 +298,8 @@ export async function generateSlotsGif(finalGrid: string[][], winningLines: numb
     // Draw symbols for each column
     for (let col = 0; col < 3; col++) {
       // Stagger the stopping of reels
-      // Col 0 stops at frame 20, Col 1 at 30, Col 2 at 40
-      const stopFrame = 20 + (col * 10);
+      // Col 0 stops at frame 15, Col 1 at 22, Col 2 at 30
+      const stopFrame = 15 + (col * 7);
       let progress = Math.min(frame / stopFrame, 1);
       const easedProgress = easeOutCubic(progress);
       
@@ -360,7 +365,7 @@ export async function generateSlotsGif(finalGrid: string[][], winningLines: numb
   }
   
   // Add a few extra frames at the end to show the result clearly
-  for(let i = 0; i < 15; i++) {
+  for(let i = 0; i < 10; i++) { // Reduced from 15 to 10
       encoder.addFrame(ctx as any);
   }
   

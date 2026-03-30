@@ -7,7 +7,7 @@ const ROULETTE_NUMBERS = [
 
 const RED_NUMBERS = new Set([1, 3, 5, 7, 9, 12, 14, 16, 18, 19, 21, 23, 25, 27, 30, 32, 34, 36]);
 
-export async function generateRouletteGif(resultNumber: number): Promise<Buffer> {
+export async function generateRouletteGif(resultNumber: number, tableColor: string = '#1a3a2a'): Promise<Buffer> {
   const width = 400;
   const height = 400;
   
@@ -42,7 +42,7 @@ export async function generateRouletteGif(resultNumber: number): Promise<Buffer>
     
     // Background
     const bgGradient = ctx.createRadialGradient(centerX, centerY, radius, centerX, centerY, width);
-    bgGradient.addColorStop(0, '#1a3a2a');
+    bgGradient.addColorStop(0, tableColor);
     bgGradient.addColorStop(1, '#0a1a12');
     ctx.fillStyle = bgGradient;
     ctx.fillRect(0, 0, width, height);

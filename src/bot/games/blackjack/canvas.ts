@@ -1,8 +1,7 @@
 import { createCanvas, CanvasRenderingContext2D, loadImage } from 'canvas';
 import { Card } from './deck.js';
+import { drawCard as drawCardUtil, drawCardBack as drawCardBackUtil, CARD_WIDTH, CARD_HEIGHT } from '../../utils/cardDrawer.js';
 
-const CARD_WIDTH = 110;
-const CARD_HEIGHT = 160;
 const PADDING = 15;
 
 export async function generateBlackjackImage(
@@ -10,7 +9,10 @@ export async function generateBlackjackImage(
   dealerHand: Card[],
   hideDealerCard: boolean,
   playerValue: number,
-  dealerValue: string | number
+  dealerValue: string | number,
+  skinColor: string = '#b71c1c',
+  tableColor: string = '#145c32',
+  style: string = 'classic'
 ): Promise<Buffer> {
   const width = 900;
   const height = 600;
@@ -18,8 +20,20 @@ export async function generateBlackjackImage(
   const canvas = createCanvas(width, height);
   const ctx = canvas.getContext('2d');
 
-  // 1. Background (Green Felt)
-  ctx.fillStyle = '#145c32'; // Base dark green
+  // 1. Background (Felt) with Radial Gradient for lighting
+  const radialGrad = ctx.createRadialGradient(width / 2, height / 2, 100, width / 2, height / 2, width * 0.8);
+  radialGrad.addColorStop(0, tableColor);
+  
+  // Darken the color for the edges
+  const darkenColor = (hex: string) => {
+    const r = parseInt(hex.slice(1, 3), 16);
+    const g = parseInt(hex.slice(3, 5), 16);
+    const b = parseInt(hex.slice(5, 7), 16);
+    return `rgb(${Math.max(0, r - 50)}, ${Math.max(0, g - 50)}, ${Math.max(0, b - 50)})`;
+  };
+  radialGrad.addColorStop(1, darkenColor(tableColor));
+  
+  ctx.fillStyle = radialGrad; 
   ctx.fillRect(0, 0, width, height);
 
   // Draw subtle felt pattern
@@ -62,9 +76,9 @@ export async function generateBlackjackImage(
     const angle = (i % 2 === 0 ? -2 : 2) * (Math.PI / 180);
     
     if (i === 1 && hideDealerCard) {
-      drawCardBack(ctx, x, y, angle);
+      drawCardBackUtil(ctx, x, y, angle, skinColor, style);
     } else {
-      drawCard(ctx, dealerHand[i], x, y, angle);
+      drawCardUtil(ctx, dealerHand[i], x, y, angle, style);
     }
   }
 
@@ -77,7 +91,7 @@ export async function generateBlackjackImage(
     const y = 390;
     // Slight fan effect
     const angle = ((i - (playerHand.length - 1) / 2) * 3) * (Math.PI / 180);
-    drawCard(ctx, playerHand[i], x, y, angle);
+    drawCardUtil(ctx, playerHand[i], x, y, angle, style);
   }
 
   // 6. Draw Chips at the bottom
@@ -338,182 +352,4 @@ function drawChips(ctx: CanvasRenderingContext2D, x: number, y: number) {
   drawChip(x - 30, y, '#2e7d32', 'V');
   drawChip(x + 30, y, '#1565c0', 'V');
   drawChip(x, y - 10, '#b71c1c', '★');
-}
-
-function roundRect(ctx: CanvasRenderingContext2D, x: number, y: number, width: number, height: number, radius: number) {
-  ctx.beginPath();
-  ctx.moveTo(x + radius, y);
-  ctx.lineTo(x + width - radius, y);
-  ctx.quadraticCurveTo(x + width, y, x + width, y + radius);
-  ctx.lineTo(x + width, y + height - radius);
-  ctx.quadraticCurveTo(x + width, y + height, x + width - radius, y + height);
-  ctx.lineTo(x + radius, y + height);
-  ctx.quadraticCurveTo(x, y + height, x, y + height - radius);
-  ctx.lineTo(x, y + radius);
-  ctx.quadraticCurveTo(x, y, x + radius, y);
-  ctx.closePath();
-}
-
-function drawCard(ctx: CanvasRenderingContext2D, card: Card, x: number, y: number, angle: number = 0) {
-  ctx.save();
-  // Translate to center of card for rotation
-  ctx.translate(x + CARD_WIDTH / 2, y + CARD_HEIGHT / 2);
-  ctx.rotate(angle);
-  // Translate back to top-left
-  const drawX = -CARD_WIDTH / 2;
-  const drawY = -CARD_HEIGHT / 2;
-
-  const isRed = card.suit === 'hearts' || card.suit === 'diamonds';
-  const mainColor = isRed ? '#d32f2f' : '#111111';
-
-  // Drop shadow
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-  ctx.shadowBlur = 8;
-  ctx.shadowOffsetX = 2;
-  ctx.shadowOffsetY = 4;
-
-  // Card background
-  ctx.fillStyle = '#ffffff';
-  roundRect(ctx, drawX, drawY, CARD_WIDTH, CARD_HEIGHT, 6);
-  ctx.fill();
-  
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
-
-  // Text color
-  ctx.fillStyle = mainColor;
-
-  // Suit symbol
-  const symbols: Record<string, string> = {
-    hearts: '♥',
-    diamonds: '♦',
-    clubs: '♣',
-    spades: '♠',
-  };
-  const symbol = symbols[card.suit];
-
-  // Top-left rank and suit
-  ctx.font = 'bold 22px "Arial", sans-serif';
-  ctx.textAlign = 'center';
-  ctx.fillText(card.rank, drawX + 20, drawY + 28);
-  ctx.font = 'bold 18px Arial';
-  ctx.fillText(symbol, drawX + 20, drawY + 48);
-
-  // Bottom-right rank and suit (inverted)
-  ctx.save();
-  ctx.translate(drawX + CARD_WIDTH - 20, drawY + CARD_HEIGHT - 28);
-  ctx.rotate(Math.PI);
-  ctx.font = 'bold 22px "Arial", sans-serif';
-  ctx.fillText(card.rank, 0, 0);
-  ctx.font = 'bold 18px Arial';
-  ctx.fillText(symbol, 0, 20);
-  ctx.restore();
-
-  // Center symbols (simplified pattern based on rank)
-  drawCenterSymbols(ctx, card.rank, symbol, drawX, drawY, CARD_WIDTH, CARD_HEIGHT);
-
-  ctx.restore();
-}
-
-function drawCenterSymbols(ctx: CanvasRenderingContext2D, rank: string, symbol: string, x: number, y: number, w: number, h: number) {
-  ctx.font = 'bold 30px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  
-  const cx = x + w / 2;
-  const cy = y + h / 2;
-
-  if (['J', 'Q', 'K', 'A'].includes(rank)) {
-    // Single large symbol for face cards and Ace
-    ctx.font = 'bold 60px Arial';
-    ctx.fillText(symbol, cx, cy);
-  } else {
-    // Number cards
-    const num = parseInt(rank);
-    if (num === 2 || num === 3) {
-      ctx.fillText(symbol, cx, cy - 30);
-      ctx.fillText(symbol, cx, cy + 30);
-      if (num === 3) ctx.fillText(symbol, cx, cy);
-    } else if (num >= 4 && num <= 6) {
-      ctx.fillText(symbol, cx - 20, cy - 30);
-      ctx.fillText(symbol, cx + 20, cy - 30);
-      ctx.fillText(symbol, cx - 20, cy + 30);
-      ctx.fillText(symbol, cx + 20, cy + 30);
-      if (num === 5) ctx.fillText(symbol, cx, cy);
-      if (num === 6) {
-        ctx.fillText(symbol, cx - 20, cy);
-        ctx.fillText(symbol, cx + 20, cy);
-      }
-    } else {
-      // 7 to 10 - just draw a cluster to represent many
-      ctx.fillText(symbol, cx - 20, cy - 40);
-      ctx.fillText(symbol, cx + 20, cy - 40);
-      ctx.fillText(symbol, cx - 20, cy);
-      ctx.fillText(symbol, cx + 20, cy);
-      ctx.fillText(symbol, cx - 20, cy + 40);
-      ctx.fillText(symbol, cx + 20, cy + 40);
-      if (num >= 8) ctx.fillText(symbol, cx, cy - 20);
-      if (num >= 9) ctx.fillText(symbol, cx, cy + 20);
-      if (num === 10) {
-        ctx.fillText(symbol, cx, cy - 60);
-        ctx.fillText(symbol, cx, cy + 60);
-      }
-    }
-  }
-}
-
-function drawCardBack(ctx: CanvasRenderingContext2D, x: number, y: number, angle: number = 0) {
-  ctx.save();
-  ctx.translate(x + CARD_WIDTH / 2, y + CARD_HEIGHT / 2);
-  ctx.rotate(angle);
-  const drawX = -CARD_WIDTH / 2;
-  const drawY = -CARD_HEIGHT / 2;
-
-  // Drop shadow
-  ctx.shadowColor = 'rgba(0, 0, 0, 0.4)';
-  ctx.shadowBlur = 8;
-  ctx.shadowOffsetX = 2;
-  ctx.shadowOffsetY = 4;
-
-  // White border
-  ctx.fillStyle = '#ffffff';
-  roundRect(ctx, drawX, drawY, CARD_WIDTH, CARD_HEIGHT, 6);
-  ctx.fill();
-  
-  ctx.shadowBlur = 0;
-  ctx.shadowOffsetX = 0;
-  ctx.shadowOffsetY = 0;
-
-  // Inner pattern fill (Red like the image)
-  ctx.fillStyle = '#b71c1c'; 
-  roundRect(ctx, drawX + 6, drawY + 6, CARD_WIDTH - 12, CARD_HEIGHT - 12, 4);
-  ctx.fill();
-
-  // Simple diamond pattern
-  ctx.fillStyle = 'rgba(255, 255, 255, 0.2)';
-  for(let py = drawY + 15; py < drawY + CARD_HEIGHT - 15; py += 20) {
-    for(let px = drawX + 15; px < drawX + CARD_WIDTH - 15; px += 20) {
-      ctx.beginPath();
-      ctx.moveTo(px, py - 5);
-      ctx.lineTo(px + 5, py);
-      ctx.lineTo(px, py + 5);
-      ctx.lineTo(px - 5, py);
-      ctx.fill();
-    }
-  }
-
-  // Center logo
-  ctx.fillStyle = '#ffffff';
-  ctx.beginPath();
-  ctx.arc(0, 0, 25, 0, Math.PI * 2);
-  ctx.fill();
-  
-  ctx.fillStyle = '#b71c1c';
-  ctx.font = 'bold 24px Arial';
-  ctx.textAlign = 'center';
-  ctx.textBaseline = 'middle';
-  ctx.fillText('♠', 0, 0);
-
-  ctx.restore();
 }

@@ -1,7 +1,5 @@
 import express from 'express';
-import { createServer as createViteServer } from 'vite';
-import path from 'path';
-import { startBot } from './src/index.js';
+import { startBot, client } from './src/index.js';
 
 async function startServer() {
   const app = express();
@@ -12,32 +10,51 @@ async function startServer() {
     res.json({ status: 'ok' });
   });
 
-  // Start the Discord Bot
-  try {
-    await startBot();
-    console.log('Discord bot initialized successfully.');
-  } catch (error) {
-    console.error('Failed to start Discord bot:', error);
-  }
+  app.get('*', (req, res) => {
+    res.send('<h1>Discord Bot is running!</h1><p>This is a headless bot application.</p>');
+  });
 
-  // Vite middleware for development
-  if (process.env.NODE_ENV !== 'production') {
-    const vite = await createViteServer({
-      server: { middlewareMode: true },
-      appType: 'spa',
-    });
-    app.use(vite.middlewares);
-  } else {
-    const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
-    app.get('*', (req, res) => {
-      res.sendFile(path.join(distPath, 'index.html'));
-    });
-  }
-
-  app.listen(PORT, '0.0.0.0', () => {
+  const server = app.listen(PORT, '0.0.0.0', () => {
     console.log(`Server running on http://localhost:${PORT}`);
   });
+
+  server.on('error', (err: any) => {
+    if (err.code === 'EADDRINUSE') {
+      console.error('Port 3000 is already in use. The previous process might still be shutting down.');
+    } else {
+      console.error('Server error:', err);
+    }
+    process.exit(1);
+  });
+
+  // Start the Discord Bot asynchronously
+  startBot().then(() => {
+    console.log('Discord bot initialized successfully.');
+  }).catch((error) => {
+    console.error('Failed to start Discord bot:', error);
+  });
+
+  // Graceful shutdown
+  const shutdown = () => {
+    console.log('Shutting down gracefully...');
+    if (client) {
+      client.destroy();
+      console.log('Discord client destroyed.');
+    }
+    server.close(() => {
+      console.log('HTTP server closed.');
+      process.exit(0);
+    });
+
+    // Force exit after 2 seconds if server.close() hangs
+    setTimeout(() => {
+      console.error('Forcing shutdown...');
+      process.exit(1);
+    }, 2000).unref();
+  };
+
+  process.on('SIGTERM', shutdown);
+  process.on('SIGINT', shutdown);
 }
 
 startServer();

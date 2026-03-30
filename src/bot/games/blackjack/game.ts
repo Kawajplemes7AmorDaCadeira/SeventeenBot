@@ -1,10 +1,11 @@
 import { ChatInputCommandInteraction, ButtonInteraction, ActionRowBuilder, ButtonBuilder, ButtonStyle, EmbedBuilder, AttachmentBuilder } from 'discord.js';
 import { Deck, Card, calculateHandValue } from './deck.js';
 import { generateBlackjackImage } from './canvas.js';
-import { updateBalance, recordBet, getUser } from '../../database/db.js';
+import { updateBalance, recordBet, getUser, addActiveBet, removeActiveBet, updateActiveBet, getActiveSkin, getActiveTableSkin } from '../../database/db.js';
 import { logBigWin } from '../../utils/logger.js';
 
 interface GameState {
+  betId: string;
   deck: Deck;
   playerHand: Card[];
   dealerHand: Card[];
@@ -47,7 +48,11 @@ export async function startGame(interaction: ChatInputCommandInteraction | Butto
   const playerHand = [deck.draw(), deck.draw()];
   const dealerHand = [deck.draw(), deck.draw()];
 
+  const betId = `${userId}_${Date.now()}`;
+  addActiveBet(betId, userId, bet, 'blackjack');
+
   const state: GameState = {
+    betId,
     deck,
     playerHand,
     dealerHand,
@@ -107,6 +112,7 @@ export async function handleBlackjackButton(interaction: ButtonInteraction, acti
 
     if (!interaction.deferred && !interaction.replied) await interaction.deferUpdate();
     updateBalance(userId, -state.bet);
+    updateActiveBet(state.betId, state.bet);
     state.bet *= 2;
     state.playerHand.push(state.deck.draw());
     
@@ -167,12 +173,20 @@ export async function handleBlackjackButton(interaction: ButtonInteraction, acti
 
 async function renderGame(interaction: ChatInputCommandInteraction | ButtonInteraction, userId: string, isGameOver: boolean, customContent?: string) {
   const state = activeGames.get(userId)!;
+  const activeSkin = getActiveSkin(userId);
+  const skinMetadata = JSON.parse(activeSkin.metadata || '{}');
+  const skinColor = skinMetadata.color || '#b71c1c';
+  const skinStyle = skinMetadata.style || 'classic';
+
+  const activeTableSkin = getActiveTableSkin(userId);
+  const tableMetadata = JSON.parse(activeTableSkin.metadata || '{}');
+  const tableColor = tableMetadata.color || '#1a4a1a';
   
   const revealDealer = isGameOver || state.status === 'dealer_turn';
   const playerValue = calculateHandValue(state.playerHand);
   const dealerValue = revealDealer ? calculateHandValue(state.dealerHand) : '?';
 
-  const imageBuffer = await generateBlackjackImage(state.playerHand, state.dealerHand, !revealDealer, playerValue, dealerValue);
+  const imageBuffer = await generateBlackjackImage(state.playerHand, state.dealerHand, !revealDealer, playerValue, dealerValue, skinColor, tableColor, skinStyle);
   const attachment = new AttachmentBuilder(imageBuffer, { name: 'blackjack.png' });
 
   let apostaText = `🪙 ${state.bet}`;
@@ -182,6 +196,7 @@ async function renderGame(interaction: ChatInputCommandInteraction | ButtonInter
   let playerValueStr = `${playerValue}`;
 
   if (isGameOver) {
+    removeActiveBet(state.betId);
     if (state.status === 'blackjack') {
       const winAmount = state.bet * 2.5;
       apostaText = `🪙 +${state.bet * 1.5}`;

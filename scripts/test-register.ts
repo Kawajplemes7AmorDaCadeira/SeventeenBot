@@ -1,5 +1,5 @@
 import { REST, Routes } from 'discord.js';
-import { config } from './src/bot/config.js';
+import { config } from '../src/bot/config.js';
 import fs from 'fs';
 import path from 'path';
 

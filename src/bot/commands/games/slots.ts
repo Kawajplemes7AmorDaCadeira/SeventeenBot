@@ -22,6 +22,18 @@ export default {
       return interaction.reply({ content: `Você não tem Odiondos suficientes! Saldo atual: 🪙 ${userData.balance}`, ephemeral: true });
     }
 
-    await playSlots(interaction, bet);
+    // Defer as early as possible for slow operations
+    await interaction.deferReply();
+
+    try {
+      await playSlots(interaction, bet);
+    } catch (error) {
+      console.error('Error in playSlots:', error);
+      if (interaction.deferred || interaction.replied) {
+        await interaction.editReply({ content: 'Ocorreu um erro ao processar o jogo de Slots.' }).catch(console.error);
+      } else {
+        await interaction.reply({ content: 'Ocorreu um erro ao processar o jogo de Slots.', ephemeral: true }).catch(console.error);
+      }
+    }
   },
 };
